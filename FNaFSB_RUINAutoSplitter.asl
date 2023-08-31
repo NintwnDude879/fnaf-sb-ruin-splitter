@@ -11,8 +11,8 @@ startup {
     settings.Add("C7_End", true, "Chapter 7 End");
     settings.Add("C8_End", true, "Chapter 8 End");
     settings.Add("B_E", true, "Brazil Ending");
-    /*
     settings.Add("S_E", true, "Scooper Ending");
+    /*
     settings.Add("E_E", true, "Elevator Ending");
     */
 }
@@ -71,9 +71,10 @@ init {
 	vars.GEngine = vars.GetStaticPointerFromSig("48 8B 05 ???????? 48 8B D1 48 8B 88 F80A0000 48 85 C9 74 07 48 8B 01 48 FF 60 40", 3);
 
     vars.watchers = new MemoryWatcherList {
-        // Stuff related to splitting (currently just position)
+        // Stuff related to splitting
         new MemoryWatcher<Vector3f>(new DeepPointer(vars.GEngine, 0xD28, 0x38, 0x0, 0x30, 0x268, 0x298, 0x11C)) { Name = "pos" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
-
+        new MemoryWatcher<bool>(new DeepPointer(vars.GEngine, 0xD28, 0x38, 0x0, 0x30, 0x268, 0x4E0, 0xC8, 0x240)) { Name = "SRB_CanUse" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
+        //bool SRB_CanUse: vars.GEngine, 0xD28, 0x38, 0x0, 0x30, 0x268, 0x4E0, 0xC8, 0x240;
         // Stuff related to pausing the timer
         new MemoryWatcher<float>(new DeepPointer(vars.GEngine, 0xD28, 0x38, 0x0, 0x30, 0x268, 0x11C)) { Name = "totalTime" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
         new MemoryWatcher<bool>(new DeepPointer(vars.UWorld, 0x118, 0x1A8, 0x20, 0x100, 0xA0, 0x228)) { Name = "menu" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
@@ -85,32 +86,32 @@ update {
     // Some "old.name"s are commented out, as they aren't currently used in the code
     vars.watchers.UpdateAll(game);
     current.pos         = vars.watchers["pos"].Current;
+    current.SRB_CanUse  = vars.watchers["SRB_CanUse"].Current;
     current.totalTime   = vars.watchers["totalTime"].Current;
     current.menu        = vars.watchers["menu"].Current;
     current.paused      = vars.watchers["paused"].Current;
     current.hasLoaded   = vars.watchers["hasLoaded"].Current;
     old.pos             = vars.watchers["pos"].Old;
+    old.SRB_CanUse      = vars.watchers["SRB_CanUse"].Old;
     old.totalTime       = vars.watchers["totalTime"].Old;
     //old.menu            = vars.watchers["menu"].Old;
     old.paused          = vars.watchers["paused"].Old;
     old.hasLoaded       = vars.watchers["hasLoaded"].Old;
 }   
 start {
-    vars.cachedPos = new float[3];
+    vars.cachedPos = 0;
     // Cache the current position if the player just spawned in
     if (old.pos.X != current.pos.X){
-        vars.cachedPos[0] = current.pos.X;
-        vars.cachedPos[1] = current.pos.Y;
-        vars.cachedPos[2] = current.pos.Z;
+        vars.cachedPos = new Vector3f(current.pos.X, current.pos.Y, current.pos.Z);
     }
     // Actually start the timer (works for individual chapters now as well :D)
     // Checks if the player has moved more than 1 unit in any direction 
     // (can't check if the player hasn't moved at all, sadly, since the starting cutscene displaces Cassie a bit)
     if (!current.menu){
         if (current.totalTime > 6){
-            if (current.pos.X - vars.cachedPos[0] < -2 || current.pos.X - vars.cachedPos[0] < 2){
-                if (current.pos.Y - vars.cachedPos[1] < -2 || current.pos.Y - vars.cachedPos[1] < 2){
-                    if (current.pos.Z - vars.cachedPos[2] < -2 || current.pos.Z - vars.cachedPos[2] < 2){
+            if (current.pos.X - vars.cachedPos.X < -2 || current.pos.X - vars.cachedPos.X < 2){
+                if (current.pos.Y - vars.cachedPos.Y < -2 || current.pos.Y - vars.cachedPos.Y < 2){
+                    if (current.pos.Z - vars.cachedPos.Z < -2 || current.pos.Z - vars.cachedPos.Z < 2){
                         return true;
                     }
                 }
@@ -177,6 +178,9 @@ split {
         return true;
     }
     if (vars.checkBox("B_E", new Vector3f(19123, 60899, -3054), new Vector3f(18874, 61153, -15000))){
+        return true;
+    }
+    if (settings["S_E"] && !current.SRB_CanUse && old.SRB_CanUse){
         return true;
     }
 }
