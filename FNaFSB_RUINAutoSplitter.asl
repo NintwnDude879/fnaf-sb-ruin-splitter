@@ -12,9 +12,7 @@ startup {
     settings.Add("C8_End", true, "Chapter 8 End");
     settings.Add("B_E", true, "Brazil Ending");
     settings.Add("S_E", true, "Scooper Ending");
-    /*
     settings.Add("E_E", true, "Elevator Ending");
-    */
 }
 init {
     vars.justInMenu = false;
@@ -73,8 +71,9 @@ init {
     vars.watchers = new MemoryWatcherList {
         // Stuff related to splitting
         new MemoryWatcher<Vector3f>(new DeepPointer(vars.GEngine, 0xD28, 0x38, 0x0, 0x30, 0x268, 0x298, 0x11C)) { Name = "pos" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
-        new MemoryWatcher<bool>(new DeepPointer(vars.GEngine, 0xD28, 0x38, 0x0, 0x30, 0x268, 0x4E0, 0xC8, 0x240)) { Name = "SRB_CanUse" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
-        //bool SRB_CanUse: vars.GEngine, 0xD28, 0x38, 0x0, 0x30, 0x268, 0x4E0, 0xC8, 0x240;
+        new MemoryWatcher<bool>(new DeepPointer(vars.UWorld, 0x138, 0x48, 0xA8, 0x758, 0x240)) { Name = "SRB_CanUse" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
+        new MemoryWatcher<bool>(new DeepPointer(vars.UWorld, 0x138, 0x48, 0xA8, 0x80, 0x3D4)) { Name = "ELE_WinState" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
+        new MemoryWatcher<bool>(new DeepPointer(vars.UWorld, 0x138, 0x48, 0xA8, 0x80, 0x460)) { Name = "ELE_inUse" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
         // Stuff related to pausing the timer
         new MemoryWatcher<float>(new DeepPointer(vars.GEngine, 0xD28, 0x38, 0x0, 0x30, 0x268, 0x11C)) { Name = "totalTime" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
         new MemoryWatcher<bool>(new DeepPointer(vars.UWorld, 0x118, 0x1A8, 0x20, 0x100, 0xA0, 0x228)) { Name = "menu" , FailAction = MemoryWatcher.ReadFailAction.SetZeroOrNull },
@@ -85,21 +84,25 @@ init {
 update {
     // Some "old.name"s are commented out, as they aren't currently used in the code
     vars.watchers.UpdateAll(game);
-    current.pos         = vars.watchers["pos"].Current;
-    current.SRB_CanUse  = vars.watchers["SRB_CanUse"].Current;
-    current.totalTime   = vars.watchers["totalTime"].Current;
-    current.menu        = vars.watchers["menu"].Current;
-    current.paused      = vars.watchers["paused"].Current;
-    current.hasLoaded   = vars.watchers["hasLoaded"].Current;
-    old.pos             = vars.watchers["pos"].Old;
-    old.SRB_CanUse      = vars.watchers["SRB_CanUse"].Old;
-    old.totalTime       = vars.watchers["totalTime"].Old;
-    //old.menu            = vars.watchers["menu"].Old;
-    old.paused          = vars.watchers["paused"].Old;
-    old.hasLoaded       = vars.watchers["hasLoaded"].Old;
+    current.pos             = vars.watchers["pos"].Current;
+    current.SRB_CanUse      = vars.watchers["SRB_CanUse"].Current;
+    current.ELE_WinState    = vars.watchers["ELE_WinState"].Current;
+    current.ELE_inUse       = vars.watchers["ELE_inUse"].Current;
+    current.totalTime       = vars.watchers["totalTime"].Current;
+    current.menu            = vars.watchers["menu"].Current;
+    current.paused          = vars.watchers["paused"].Current;
+    current.hasLoaded       = vars.watchers["hasLoaded"].Current;
+    old.pos                 = vars.watchers["pos"].Old;
+    old.SRB_CanUse          = vars.watchers["SRB_CanUse"].Old;
+    //old.ELE_WinState      = vars.watchers["ELE_WinState"].Old;
+    old.ELE_inUse           = vars.watchers["ELE_inUse"].Old;
+    old.totalTime           = vars.watchers["totalTime"].Old;
+    //old.menu              = vars.watchers["menu"].Old;
+    old.paused              = vars.watchers["paused"].Old;
+    old.hasLoaded           = vars.watchers["hasLoaded"].Old;
 }   
 start {
-    vars.cachedPos = 0;
+    vars.cachedPos = new Vector3f();
     // Cache the current position if the player just spawned in
     if (old.pos.X != current.pos.X){
         vars.cachedPos = new Vector3f(current.pos.X, current.pos.Y, current.pos.Z);
@@ -139,11 +142,13 @@ isLoading {
     if (current.hasLoaded && !old.hasLoaded){
         vars.cachedTime = current.totalTime;
     }
-    if (current.hasLoaded && current.totalTime - vars.cachedTime < 4.1 && !vars.onLadder) return true;
+    if (current.hasLoaded && current.totalTime - vars.cachedTime < 4.05 && !vars.onLadder) return true;
+    else {
+        return false;
+    }
 
     if (current.pos.X != 0){
         if (!current.paused && old.paused) return false;
-        if (4.5 <= current.totalTime && old.totalTime < 4.5) return false;
     }
 }
 onStart {
@@ -155,32 +160,46 @@ split {
     // AR or RW when entering the next chapter
     if (vars.checkBox("C1_End", new Vector3f(-25825, 43594, 1450), new Vector3f(-25418, 44000, 1750))){
         return true;
+        print("C1_End");
     }
     if (vars.checkBox("C2_End", new Vector3f(-34750, 41250, 1730), new Vector3f(-34600, 41100, 1900))){
         return true;
+        print("C2_End");
     }
     if (vars.checkBox("C3_End", new Vector3f(-46373, 46249, 1750), new Vector3f(-45729, 46536, 2000))){
         return true;
+        print("C3_End");
     }
     if (vars.checkRW_AR("C4_End", new Vector3f(-49600, 72633, 2320), new Vector3f(-49400, 72958, 2700))){
         return true;
+        print("C4_End");
     }
     if (vars.checkBox("C5_End", new Vector3f(-48815, 80876, 674), new Vector3f(-48653, 80717, 1014))){
         return true;
+        print("C5_End");
     }
     if (vars.checkBox("C6_End", new Vector3f(-39090, 76754, 1398), new Vector3f(-38912, 76529, 1681))){
         return true;
+        print("C6_End");
     }
     if (vars.checkRW_AR("C7_End", new Vector3f(-25499, 86232, 2080), new Vector3f(-25654, 86066, 2360))){
         return true;
+        print("C7_End");
     }
     if (vars.checkRW_AR("C8_End", new Vector3f(-38080, 82827, 811), new Vector3f(-38175, 82633, 1042))){
         return true;
+        print("C8_End");
     }
     if (vars.checkBox("B_E", new Vector3f(19123, 60899, -3054), new Vector3f(18874, 61153, -15000))){
         return true;
+        print("Brazil Ending");
     }
     if (settings["S_E"] && !current.SRB_CanUse && old.SRB_CanUse){
         return true;
+        print("Scooper Ending");
+    }
+    if (settings["E_E"] && !current.ELE_inUse && old.ELE_inUse && current.ELE_WinState){
+        return true;
+        print("Elevator Ending");
     }
 }
