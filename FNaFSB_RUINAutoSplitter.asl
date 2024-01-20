@@ -49,10 +49,10 @@ init {
 		return false;
 	});
 
-    // ONLY USE WITH RW BOX AS INPUT: input gets shifted DOWN to check another box in AR
+    // ONLY USE WITH REAL WORLD BOX AS INPUT: input gets shifted DOWN to check another box in AR
     vars.checkRW_AR = (Func<string, Vector3f, Vector3f, bool>)((name, point1, point2) => {
-        Vector3f lowerPoint1 = new Vector3f(point2.X, point2.Y, point2.Z-5000);
-        Vector3f lowerPoint2 = new Vector3f(point2.X, point2.Y, point2.Z-5000);
+        Vector3f lowerPoint1 = new Vector3f(point1.X, point1.Y, point1.Z-5000f);
+        Vector3f lowerPoint2 = new Vector3f(point2.X, point2.Y, point2.Z-5000f);
         return (vars.checkBox(name, point1, point2) || vars.checkBox(name, lowerPoint1, lowerPoint2));
     });
 
